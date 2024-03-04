@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Capture, Crop, and Text Extraction</title>
+    <!-- Include Cropper.js library -->
+    <link href="https://cdn.jsdelivr.net/npm/cropperjs/dist/cropper.min.css" rel="stylesheet">
+</head>
+<body>
+    <video id="video" width="640" height="480" autoplay></video>
+    <button id="captureButton">Capture Image</button>
+    <button id="cropButton" disabled>Crop Image</button>
+    <button id="extractButton" disabled>Extract Text</button>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <!-- Include Cropper.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/cropperjs/dist/cropper.min.js"></script>
+    <!-- Include Tesseract.js library -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.4.0/dist/tesseract.min.js"></script>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const captureButton = document.getElementById('captureButton');
+        const cropButton = document.getElementById('cropButton');
+        const extractButton = document.getElementById('extractButton');
+        let isCaptured = false;
+        let cropper;
+
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then((stream) => {
+                video.srcObject = stream;
+            })
+            .catch((error) => {
+                console.error('Error accessing camera:', error);
+            });
+
+        captureButton.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            isCaptured = true;
+            cropButton.disabled = false;
+        });
+
+        cropButton.addEventListener('click', () => {
+            if (!isCaptured) {
+                alert('Please capture an image first.');
+                return;
+            }
+            // Initialize Cropper.js
+            cropper = new Cropper(canvas, {
+                aspectRatio: 1, // You can adjust the aspect ratio as needed
+                viewMode: 1,    // Set the view mode to crop box
+            });
+            extractButton.disabled = false;
+        });
+
+        extractButton.addEventListener('click', () => {
+            if (!isCaptured) {
+                alert('Please capture and crop an image first.');
+                return;
+            }
+            // Get cropped image data
+            const croppedImageData = cropper.getCroppedCanvas().toDataURL();
+            // Convert base64 image data to a Blob
+            const imageBlob = dataURItoBlob(croppedImageData);
+
+            // Use Tesseract.js to extract text from the cropped image
+            Tesseract.recognize(
+                imageBlob,
+                'eng',
+                { logger: m => console.log(m) }
+            ).then(({ data: { text } }) => {
+                alert('Extracted Text: ' + text);
+            }).catch((error) => {
+                console.error('Error extracting text:', error);
+            });
+        });
+
+        // Helper function to convert data URI to Blob
+        function dataURItoBlob(dataURI) {
+            const byteString = atob(dataURI.split(',')[1]);
+            const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+            const ab = new ArrayBuffer(byteString.length);
+            const ia = new Uint8Array(ab);
+            for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+            }
+            return new Blob([ab], { type: mimeString });
+        }
+    </script>
+</body>
+</html>

@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from core.models import BusinessCard
+from .models import BusinessCard
 from .forms import ImageUploadForm
 import pytesseract
 from PIL import Image
@@ -34,9 +34,6 @@ def extract_info(text):
 
     return company_name, phone, email, website
 
-
-
-
 # View for uploading image and performing OCR
 @csrf_exempt
 def upload_image(request):
@@ -60,9 +57,16 @@ def upload_image(request):
 
             # Extract information from the text
             company_name, phone, email, website = extract_info(extracted_text)
-            obj=BusinessCard(filename=uploaded_image.name,company_name=company_name,phone=phone,email=email,website=website)
-            obj.save()
-            print(company_name, phone, email, website)
+
+            # Save the extracted information to the database
+            business_card = BusinessCard.objects.create(
+                filename=uploaded_image.name,
+                company_name=company_name,
+                phone=phone,
+                email=email,
+                website=website
+            )
+
             # Return extracted information as JSON response
             return JsonResponse({
                 'company_name': company_name,
@@ -71,8 +75,7 @@ def upload_image(request):
                 'website': website
             })
         else:
-            print(request.POST)
-            return JsonResponse({'error': 'Invalid form data'})
+            return JsonResponse({'error': 'Invalid form data'}, status=400)
     else:
         form = ImageUploadForm()
-    return render(request, 'upload_image.html', {'form': form})
+    return render(request, 'capture_image.html', {'form': form})
